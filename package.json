@@ -1,0 +1,13 @@
+{
+  "name": "fan-vent-generator",
+  "version": "2.0.0",
+  "description": "Parametric fan vent pattern generator with DXF and SVG export",
+  "main": "src/gen.js",
+  "scripts": {
+    "examples": "node scripts/generate-examples.js"
+  },
+  "dependencies": {
+    "clipper-lib": "6.4.2"
+  },
+  "private": true
+}

@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="Parametric fan vent pattern generator with DXF and SVG export.">
-<style>[hidden]{display:none!important} img{max-width:100%} body{margin:0}</style>
+<style>img{max-width:100%} body{margin:0}</style>
 <title>Fan Vent Generator</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
-/* Layout: drawing sheet on the left (sticky on desktop), parameter panel on the right; stacks on phones. */
+/* Layout: drawing sheet on the left (sticky on desktop), shape → pattern → parameters on the right; stacks on phones. */
 :root {
   --paper: #EEF0EE;
   --sheet: #FBFCFB;
@@ -19,9 +19,10 @@
   --cut: #D23A22;
   --cut-fill: rgba(210, 58, 34, 0.10);
   --field: #FFFFFF;
-  --warn: #9A6A00;
+  --warn: #8A5F00;
   --warn-bg: #FFF4D6;
   --good: #2F7A52;
+  --grid: rgba(27, 34, 32, 0.07);
   --font-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
   --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -30,16 +31,17 @@
   :root:not([data-theme="light"]) {
     --paper: #101413; --sheet: #171C1B; --ink: #E4E9E7; --muted: #95A29D; --rule: #2C3432;
     --cut: #FF6B4E; --cut-fill: rgba(255, 107, 78, 0.13); --field: #1E2423;
-    --warn: #F2C14E; --warn-bg: #2D2612; --good: #6FCB97; color-scheme: dark;
+    --warn: #F2C14E; --warn-bg: #2D2612; --good: #6FCB97; --grid: rgba(228, 233, 231, 0.07); color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --paper: #101413; --sheet: #171C1B; --ink: #E4E9E7; --muted: #95A29D; --rule: #2C3432;
   --cut: #FF6B4E; --cut-fill: rgba(255, 107, 78, 0.13); --field: #1E2423;
-  --warn: #F2C14E; --warn-bg: #2D2612; --good: #6FCB97; color-scheme: dark;
+  --warn: #F2C14E; --warn-bg: #2D2612; --good: #6FCB97; --grid: rgba(228, 233, 231, 0.07); color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body {
   background: var(--paper); color: var(--ink); font-family: var(--font-body); font-size: 14px; line-height: 1.45;
   padding-left: max(16px, env(safe-area-inset-left, 0px));
@@ -49,19 +51,19 @@ body {
 .wrap { max-width: 1180px; margin: 0 auto; display: grid; gap: 18px; }
 header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; }
 h1 { font-family: var(--font-display); font-weight: 600; font-size: 26px; letter-spacing: 0.01em; margin: 0; text-wrap: balance; }
-header p { margin: 0; color: var(--muted); max-width: 62ch; }
+header p { margin: 0; color: var(--muted); max-width: 66ch; }
 
-.main { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 18px; align-items: start; }
-@media (max-width: 860px) { .main { grid-template-columns: minmax(0, 1fr); } }
+.main { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 880px) { .main { grid-template-columns: minmax(0, 1fr); } }
 
 .sheet { background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: 14px; display: grid; gap: 12px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); }
-@media (max-width: 860px) { .sheet { position: static; } }
+@media (max-width: 880px) { .sheet { position: static; } }
 .sheet-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
-.sheet-head .name { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.sheet-head .name { font-family: var(--font-mono); font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
 .drawing { width: 100%; aspect-ratio: 1; max-width: 100%; display: block; }
 .drawing .ol { fill: none; stroke: var(--ink); stroke-width: 1.2px; vector-effect: non-scaling-stroke; }
 .drawing .sl { fill: var(--cut-fill); stroke: var(--cut); stroke-width: 1px; vector-effect: non-scaling-stroke; }
-.drawing .cm { stroke: var(--muted); stroke-width: 0.8px; vector-effect: non-scaling-stroke; stroke-dasharray: 6 3 1 3; }
+.drawing .cm { stroke: var(--muted); stroke-width: 0.8px; vector-effect: non-scaling-stroke; stroke-dasharray: 6 3 1 3; fill: none; }
 .drawing .dim { stroke: var(--muted); stroke-width: 0.8px; vector-effect: non-scaling-stroke; fill: none; }
 .drawing text { fill: var(--muted); font-family: var(--font-mono); }
 
@@ -75,54 +77,70 @@ header p { margin: 0; color: var(--muted); max-width: 62ch; }
 .chip { font-size: 12px; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--rule); color: var(--good); }
 .chip.warn { color: var(--warn); background: var(--warn-bg); border-color: transparent; }
 
-.panel { display: grid; gap: 14px; }
-.shape-switch { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; background: var(--sheet); }
-.shape-switch button { font: 600 14px var(--font-body); color: var(--muted); background: transparent; border: 0; padding: 10px 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
-.shape-switch button + button { border-left: 1px solid var(--rule); }
-.shape-switch button[aria-pressed="true"] { color: var(--ink); background: var(--field); box-shadow: inset 0 -2px 0 var(--cut); }
-.shape-switch svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.4; }
+.panel { display: grid; gap: 14px; min-width: 0; }
+.seg { display: grid; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; background: var(--sheet); }
+.seg.two { grid-template-columns: 1fr 1fr; }
+.seg.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 480px) { .seg.four { grid-template-columns: 1fr 1fr; } .seg.four button:nth-child(3) { border-left: 0; } .seg.four button:nth-child(n+3) { border-top: 1px solid var(--rule); } }
+.seg button { font: 600 13.5px var(--font-body); color: var(--muted); background: transparent; border: 0; padding: 10px 8px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; min-width: 0; }
+.seg.two button { flex-direction: row; gap: 8px; }
+.seg button + button { border-left: 1px solid var(--rule); }
+.seg button[aria-pressed="true"] { color: var(--ink); background: var(--field); box-shadow: inset 0 -2px 0 var(--cut); }
+.seg button:disabled { opacity: 0.4; cursor: not-allowed; }
+.seg svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.3; }
+.step-label { font-family: var(--font-display); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin: 0 0 -8px 2px; }
 
 fieldset { border: 1px solid var(--rule); border-radius: 6px; margin: 0; padding: 12px; background: var(--sheet); display: grid; gap: 10px; min-width: 0; }
 legend { font-family: var(--font-display); font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; padding: 0 6px; color: var(--muted); }
 .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; }
 @media (max-width: 420px) { .grid { grid-template-columns: minmax(0, 1fr); } }
-.f { display: grid; gap: 4px; min-width: 0; }
+.f { display: grid; gap: 4px; min-width: 0; align-content: start; }
+.f.wide { grid-column: 1 / -1; }
 .f label { font-size: 12.5px; font-weight: 500; }
-.f small { font-size: 11.5px; color: var(--muted); }
-.inp { display: flex; align-items: center; border: 1px solid var(--rule); border-radius: 4px; background: var(--field); }
+.f small, .hint { font-size: 11.5px; color: var(--muted); }
+.inp { display: flex; align-items: center; border: 1px solid var(--rule); border-radius: 4px; background: var(--field); min-width: 0; }
 .inp:focus-within { outline: 2px solid var(--cut); outline-offset: 1px; }
-.inp input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--ink); font: 500 14px var(--font-mono); padding: 7px 8px; font-variant-numeric: tabular-nums; outline: none; }
-.inp select { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--ink); font: 500 13.5px var(--font-body); padding: 7px 6px; outline: none; }
+.inp input, .inp select { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--ink); padding: 7px 8px; outline: none; }
+.inp input { font: 500 14px var(--font-mono); font-variant-numeric: tabular-nums; }
+.inp select { font: 500 13.5px var(--font-body); padding: 7px 6px; }
 .inp .u { font: 12px var(--font-mono); color: var(--muted); padding-right: 8px; }
-.row { display: flex; gap: 8px; align-items: stretch; flex-wrap: wrap; }
-.row .inp { flex: 1 1 180px; }
 .toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
-.toggle input { width: 16px; height: 16px; accent-color: var(--cut); }
-
-.btn { font: 600 13.5px var(--font-body); border-radius: 4px; padding: 8px 12px; cursor: pointer; border: 1px solid var(--rule); background: var(--field); color: var(--ink); }
-.btn:hover { border-color: var(--muted); }
-.btn:focus-visible, .shape-switch button:focus-visible { outline: 2px solid var(--cut); outline-offset: 2px; }
-.btn.primary { background: var(--cut); color: #fff; border-color: var(--cut); }
-.btn.primary:hover { filter: brightness(1.07); }
-.export { display: grid; gap: 8px; }
-.angle-row { display: grid; grid-template-columns: 96px minmax(0, 1fr) 30px; gap: 12px; align-items: center; }
+.toggle input { width: 16px; height: 16px; accent-color: var(--cut); flex: none; }
+.row { display: flex; gap: 8px; align-items: stretch; flex-wrap: wrap; }
+.row .inp { flex: 1 1 160px; }
+.angle-row { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 12px; align-items: center; }
 .angle-row input[type="range"] { width: 100%; accent-color: var(--cut); }
-.angle-dial { width: 30px; height: 30px; }
-.angle-dial circle { fill: none; stroke: var(--rule); stroke-width: 1.2; }
-.angle-dial line { stroke: var(--cut); stroke-width: 2.2; stroke-linecap: round; }
-.presets { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.btn { font: 600 13px var(--font-body); border-radius: 4px; padding: 7px 11px; cursor: pointer; border: 1px solid var(--rule); background: var(--field); color: var(--ink); }
+.btn:hover { border-color: var(--muted); }
+.btn:focus-visible, .seg button:focus-visible, .editor:focus-visible { outline: 2px solid var(--cut); outline-offset: 2px; }
+.btn.primary { background: var(--cut); color: #fff; border-color: var(--cut); }
 .btn.sm { font-size: 12px; padding: 5px 9px; font-weight: 500; }
 .btn.sm[aria-pressed="true"] { border-color: var(--cut); color: var(--cut); }
+.presets { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.editor-wrap { display: grid; gap: 8px; }
+.editor { width: 100%; aspect-ratio: 2.2; display: block; background: var(--field); border: 1px solid var(--rule); border-radius: 4px; touch-action: none; cursor: crosshair; }
+.editor .gl { stroke: var(--grid); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.editor .ax { stroke: var(--rule); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.editor .ln { fill: none; stroke: var(--cut); stroke-width: 2px; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+.editor .pt { fill: var(--field); stroke: var(--cut); stroke-width: 1.5px; vector-effect: non-scaling-stroke; cursor: grab; }
+.editor .pt.end { fill: var(--cut); }
+textarea { width: 100%; min-height: 64px; resize: vertical; font: 12.5px var(--font-mono); color: var(--ink); background: var(--field); border: 1px solid var(--rule); border-radius: 4px; padding: 7px 8px; }
+textarea:focus { outline: 2px solid var(--cut); outline-offset: 1px; }
+.file-btn { position: relative; overflow: hidden; display: inline-flex; align-items: center; }
+.file-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
 .export .row .btn { flex: 1 1 auto; }
 .note { font-size: 12px; color: var(--muted); margin: 0; }
 .status { font-size: 12.5px; min-height: 1.2em; margin: 0; }
-
 details { border-top: 1px solid var(--rule); padding-top: 8px; }
 summary { cursor: pointer; font-size: 12.5px; color: var(--muted); }
 .tbl-wrap { overflow-x: auto; margin-top: 8px; max-height: 220px; overflow-y: auto; }
 table { border-collapse: collapse; width: 100%; font: 12px var(--font-mono); font-variant-numeric: tabular-nums; }
 th, td { text-align: right; padding: 3px 8px; border-bottom: 1px solid var(--rule); }
 th { color: var(--muted); font-weight: 500; position: sticky; top: 0; background: var(--sheet); }
+code { font-family: var(--font-mono); font-size: 0.95em; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
@@ -130,110 +148,72 @@ th { color: var(--muted); font-weight: 500; position: sticky; top: 0; background
 <div class="wrap">
   <header>
     <h1>Fan Vent Generator</h1>
-    <p>Concentric arc slots for round vents, angled slots for square and rectangular ones. Every dimension is in millimetres and the drawing updates as you type.</p>
+    <p>Choose an outline and a pattern, set every dimension in millimetres, and export a DXF for CAD, 3D printing or laser cutting.</p>
   </header>
 
   <div class="main">
     <section class="sheet" aria-label="Pattern preview">
       <div class="sheet-head">
-        <strong id="sheetTitle">Ø38 circle · concentric arcs</strong>
-        <span class="name" id="fileName">fan_vent_circle_38mm</span>
+        <strong id="sheetTitle">Pattern</strong>
+        <span class="name" id="fileName"></span>
       </div>
       <svg class="drawing" id="drawing" role="img" aria-label="Vent pattern drawing"></svg>
       <div class="stats">
-        <div class="stat"><b id="sSlots">–</b><span>Slots</span></div>
+        <div class="stat"><b id="sCount">–</b><span id="sCountLbl">Cutouts</span></div>
         <div class="stat"><b id="sOpen">–</b><span>Open area</span></div>
         <div class="stat"><b id="sMm2">–</b><span>Open mm²</span></div>
         <div class="stat"><b id="sRows">–</b><span id="sRowsLbl">Rings</span></div>
       </div>
       <div class="checks" id="checks"></div>
       <details>
-        <summary id="tblSummary">Ring breakdown</summary>
+        <summary id="tblSummary">Breakdown</summary>
         <div class="tbl-wrap"><table id="tbl"></table></div>
       </details>
     </section>
 
-    <section class="panel" aria-label="Parameters">
-      <div class="shape-switch" role="group" aria-label="Vent shape">
-        <button type="button" id="btnCircle" aria-pressed="true"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="8"/><path d="M5.5 10a4.5 4.5 0 0 1 9 0"/></svg>Circle</button>
-        <button type="button" id="btnSquare" aria-pressed="false"><svg viewBox="0 0 20 20"><rect x="2" y="2" width="16" height="16" rx="2"/><path d="M5 11l6-6M9 15l6-6"/></svg>Square / rectangle</button>
+    <section class="panel" aria-label="Settings">
+      <p class="step-label">Outline</p>
+      <div class="seg two" role="group" aria-label="Outline shape">
+        <button type="button" id="shape_circle" aria-pressed="true"><svg viewBox="0 0 22 22"><circle cx="11" cy="11" r="8.5"/></svg>Circle</button>
+        <button type="button" id="shape_rect" aria-pressed="false"><svg viewBox="0 0 22 22"><rect x="2" y="5" width="18" height="12" rx="2"/></svg>Square / rectangle</button>
+      </div>
+      <fieldset>
+        <legend>Outline size</legend>
+        <div class="grid" id="shapeFields"></div>
+      </fieldset>
+
+      <p class="step-label">Pattern</p>
+      <div class="seg four" role="group" aria-label="Pattern type">
+        <button type="button" id="pat_arcs"><svg viewBox="0 0 22 22"><path d="M4 13a7 7 0 0 1 14 0M7.5 13a3.5 3.5 0 0 1 7 0"/></svg>Arc slots</button>
+        <button type="button" id="pat_slots"><svg viewBox="0 0 22 22"><path d="M4 12l6-6M8 16l6-6M12 18l6-6"/></svg>Straight slots</button>
+        <button type="button" id="pat_holes"><svg viewBox="0 0 22 22"><circle cx="11" cy="11" r="2.6"/><circle cx="4.5" cy="11" r="1.3"/><circle cx="17.5" cy="11" r="1.3"/><circle cx="11" cy="4.5" r="1.3"/><circle cx="11" cy="17.5" r="1.3"/></svg>Graded holes</button>
+        <button type="button" id="pat_line"><svg viewBox="0 0 22 22"><path d="M2 14c3-6 6-6 9 0s6 6 9 0"/></svg>Custom line</button>
+      </div>
+      <p class="hint" id="patHint" hidden>Arc slots follow a circular outline, so they are only available for circles.</p>
+
+      <div id="lineEditor" class="panel" hidden>
+        <fieldset>
+          <legend>Your line</legend>
+          <div class="editor-wrap">
+            <svg class="editor" id="editor" tabindex="0" aria-label="Line editor: click to add a point, drag to move, double-click a point to remove it"></svg>
+            <div class="hint">Click to add a point at the end, drag points to move them, double-click a point to delete it. The line is scaled so its start and end points sit one motif length apart.</div>
+            <div class="presets" id="linePresets" role="group" aria-label="Line presets"></div>
+            <div class="row">
+              <button type="button" class="btn sm" id="lineUndo">Remove last point</button>
+              <button type="button" class="btn sm" id="lineReverse">Reverse</button>
+              <button type="button" class="btn sm" id="lineFlip">Flip vertically</button>
+              <span class="btn sm file-btn">Import DXF or SVG…<input type="file" id="lineFile" accept=".dxf,.svg,image/svg+xml" aria-label="Import a line from a DXF or SVG file"></span>
+            </div>
+            <div class="f">
+              <label for="lineCoords">Points (x, y), one pair per line</label>
+              <textarea id="lineCoords" spellcheck="false"></textarea>
+              <div class="row"><button type="button" class="btn sm" id="lineApply">Apply points</button></div>
+            </div>
+          </div>
+        </fieldset>
       </div>
 
-      <div id="circleFields" class="panel">
-        <fieldset>
-          <legend>Outline</legend>
-          <div class="grid">
-            <div class="f"><label for="c_D">Diameter</label><div class="inp"><input id="c_D" type="number" step="0.5" min="5"><span class="u">mm</span></div></div>
-            <div class="f"><label for="c_margin">Solid border</label><div class="inp"><input id="c_margin" type="number" step="0.1" min="0"><span class="u">mm</span></div></div>
-            <div class="f"><label for="c_hub">Min. centre hub Ø</label><div class="inp"><input id="c_hub" type="number" step="0.5" min="0"><span class="u">mm</span></div><small>Solid area in front of the fan motor</small></div>
-          </div>
-        </fieldset>
-        <fieldset>
-          <legend>Slots &amp; spacing</legend>
-          <div class="grid">
-            <div class="f"><label for="c_w">Slot width</label><div class="inp"><input id="c_w" type="number" step="0.1" min="0.2"><span class="u">mm</span></div></div>
-            <div class="f"><label for="c_ringGap">Gap between rings</label><div class="inp"><input id="c_ringGap" type="number" step="0.1" min="0.2"><span class="u">mm</span></div></div>
-            <div class="f"><label for="c_spokeMin">Min. spoke width</label><div class="inp"><input id="c_spokeMin" type="number" step="0.1" min="0.2"><span class="u">mm</span></div><small>Material between slots in a ring</small></div>
-            <div class="f"><label for="c_twist">Ring rotation</label><div class="inp"><input id="c_twist" type="number" step="1"><span class="u">°</span></div><small>Extra turn per ring, staggers spokes</small></div>
-          </div>
-        </fieldset>
-        <fieldset>
-          <legend>Slot lengths per ring</legend>
-          <div class="f">
-            <label for="c_lengths">Target lengths, outer ring first</label>
-            <div class="row"><div class="inp"><input id="c_lengths" type="text" inputmode="decimal"><span class="u">mm</span></div><button class="btn" type="button" id="c_rand">Shuffle</button></div>
-            <small>Comma-separated. The list repeats if there are more rings than values.</small>
-          </div>
-        </fieldset>
-      </div>
-
-      <div id="squareFields" class="panel" hidden>
-        <fieldset>
-          <legend>Outline</legend>
-          <div class="grid">
-            <div class="f"><label for="s_W">Width</label><div class="inp"><input id="s_W" type="number" step="0.5" min="5"><span class="u">mm</span></div></div>
-            <div class="f"><label for="s_H">Height</label><div class="inp"><input id="s_H" type="number" step="0.5" min="5"><span class="u">mm</span></div><small>Same as width for a square</small></div>
-            <div class="f"><label for="s_cornerR">Corner radius</label><div class="inp"><input id="s_cornerR" type="number" step="0.5" min="0"><span class="u">mm</span></div></div>
-            <div class="f"><label for="s_margin">Solid border</label><div class="inp"><input id="s_margin" type="number" step="0.1" min="0"><span class="u">mm</span></div></div>
-          </div>
-        </fieldset>
-        <fieldset>
-          <legend>Slot angle</legend>
-          <div class="angle-row">
-            <div class="inp angle-num"><input id="s_angle" type="number" step="1" aria-label="Slot angle in degrees"><span class="u">°</span></div>
-            <input id="s_angleRange" type="range" min="0" max="180" step="1" aria-label="Slot angle slider">
-            <svg class="angle-dial" viewBox="-12 -12 24 24" aria-hidden="true"><circle r="10"/><line id="angleNeedle" x1="-9" y1="0" x2="9" y2="0"/></svg>
-          </div>
-          <div class="presets" role="group" aria-label="Angle presets">
-            <button type="button" class="btn sm" data-angle="0">0° horizontal</button>
-            <button type="button" class="btn sm" data-angle="30">30°</button>
-            <button type="button" class="btn sm" data-angle="45">45° diagonal</button>
-            <button type="button" class="btn sm" data-angle="60">60°</button>
-            <button type="button" class="btn sm" data-angle="90">90° vertical</button>
-            <button type="button" class="btn sm" data-angle="135">135° mirrored</button>
-          </div>
-          <small class="note">Measured counter-clockwise from horizontal. Any value works, including decimals.</small>
-        </fieldset>
-        <fieldset>
-          <legend>Slots &amp; spacing</legend>
-          <div class="grid">
-            <div class="f"><label for="s_w">Slot width</label><div class="inp"><input id="s_w" type="number" step="0.1" min="0.2"><span class="u">mm</span></div></div>
-            <div class="f"><label for="s_rowGap">Gap between rows</label><div class="inp"><input id="s_rowGap" type="number" step="0.1" min="0.2"><span class="u">mm</span></div></div>
-            <div class="f"><label for="s_web">Gap between slot ends</label><div class="inp"><input id="s_web" type="number" step="0.1" min="0.2"><span class="u">mm</span></div></div>
-            <div class="f"><label for="s_minLen">Shortest edge slot</label><div class="inp"><input id="s_minLen" type="number" step="0.1" min="0.2"><span class="u">mm</span></div></div>
-            <div class="f"><label for="s_ends">Slot ends</label><div class="inp"><select id="s_ends"><option value="round">Round (obround slots)</option><option value="square">Square (rectangular slots)</option></select></div></div>
-          </div>
-          <label class="toggle"><input id="s_stretch" type="checkbox">Stretch edge slots instead of leaving short gaps</label>
-        </fieldset>
-        <fieldset>
-          <legend>Slot lengths per row</legend>
-          <div class="f">
-            <label for="s_lengths">Target lengths, centre row outward</label>
-            <div class="row"><div class="inp"><input id="s_lengths" type="text" inputmode="decimal"><span class="u">mm</span></div><button class="btn" type="button" id="s_rand">Shuffle</button></div>
-            <small>Comma-separated. Rows mirror around the centre row.</small>
-          </div>
-        </fieldset>
-      </div>
+      <div id="patternFields" class="panel"></div>
 
       <fieldset class="export">
         <legend>Export</legend>
@@ -241,229 +221,438 @@ th { color: var(--muted); font-weight: 500; position: sticky; top: 0; background
           <button class="btn primary" type="button" id="saveDxf">Save DXF</button>
           <button class="btn" type="button" id="copyDxf">Copy DXF text</button>
           <button class="btn" type="button" id="saveSvg">Save SVG</button>
-          <button class="btn" type="button" id="reset">Reset shape</button>
+          <button class="btn" type="button" id="reset">Reset pattern</button>
         </div>
-        <p class="note" id="dxfNote">The DXF downloads as <code>.dxf.txt</code>, because this page can only save a fixed set of file types. Delete the <code>.txt</code> ending and it opens in Fusion 360, FreeCAD, Onshape, SolidWorks or LibreCAD. Layers: OUTLINE and SLOTS, units mm.</p>
+        <p class="note" id="dxfNote">The DXF downloads as <code>.dxf.txt</code>, because this page can only save a fixed set of file types. Delete the <code>.txt</code> ending and it opens in Fusion 360, FreeCAD, Onshape, SolidWorks or LibreCAD. Layers: OUTLINE and CUTOUTS, units mm.</p>
         <p class="status" id="status" role="status"></p>
       </fieldset>
     </section>
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/clipper-lib@6.4.2/clipper.js"></script>
 <script src="src/gen.js"></script>
 <script>
 (function () {
   const G = window.VentGen;
+  const $ = (id) => document.getElementById(id);
+
+  /* ---------- defaults ---------- */
   const DEFAULTS = {
-    circle: { D: 38, margin: 1.5, hub: 2, w: 1, ringGap: 1, spokeMin: 1, twist: 21, lengths: "11, 7, 9.5, 5.5, 8, 6.5, 4.5, 3.5" },
-    square: { W: 38, H: 38, cornerR: 3, ends: "round", margin: 1.5, angle: 45, w: 1, rowGap: 1, web: 1, minLen: 2.5, stretch: true, lengths: "8, 4, 6, 10, 5" },
-  };
-  const KEYS = {
-    circle: ["D", "margin", "hub", "w", "ringGap", "spokeMin", "twist", "lengths"],
-    square: ["W", "H", "ends", "cornerR", "margin", "angle", "w", "rowGap", "web", "minLen", "stretch", "lengths"],
+    shape: "circle", pattern: "arcs", margin: 1.5,
+    circle: { D: 38 },
+    rect: { W: 38, H: 38, cornerR: 3 },
+    arcs: { hub: 2, w: 1, ringGap: 1, spokeMin: 1, twist: 21, lengths: "11, 7, 9.5, 5.5, 8, 6.5, 4.5, 3.5" },
+    slots: { angle: 45, ends: "round", w: 1, rowGap: 1, web: 1, minLen: 2.5, stretch: true, lengths: "8, 4, 6, 10, 5" },
+    holes: { layout: "rings", dCenter: 3, dEdge: 1.2, curve: 1, web: 1, minD: 0.8, centerHole: true, hub: 4, twist: 0, gradTo: "far" },
+    line: { points: G.presetLine("wave"), preset: "wave", L: 10, hScale: 1, w: 1, ends: "round", arrange: "rows", angle: 0, rowPitch: 4.5, gap: 0, stagger: false, mirror: false, count: 12, r0: 3, rotation: 0, minLen: 2 },
   };
   const clone = (o) => JSON.parse(JSON.stringify(o));
-  let state = { shape: "circle", circle: clone(DEFAULTS.circle), square: clone(DEFAULTS.square) };
+
+  /* ---------- field definitions ---------- */
+  const N = (k, label, unit, step, extra = {}) => ({ k, label, unit, step, type: "num", ...extra });
+  const SHAPE_FIELDS = {
+    circle: [N("D", "Diameter", "mm", 0.5, { min: 5 }), { k: "margin", label: "Solid border", unit: "mm", step: 0.1, type: "num", min: 0, shared: true, hint: "Kept solid around the edge" }],
+    rect: [N("W", "Width", "mm", 0.5, { min: 5 }), N("H", "Height", "mm", 0.5, { min: 5, hint: "Same as width for a square" }), N("cornerR", "Corner radius", "mm", 0.5, { min: 0 }), { k: "margin", label: "Solid border", unit: "mm", step: 0.1, type: "num", min: 0, shared: true }],
+  };
+  const sel = (k, label, options, extra = {}) => ({ k, label, type: "select", options, ...extra });
+  const chk = (k, label, extra = {}) => ({ k, label, type: "check", ...extra });
+  const txt = (k, label, extra = {}) => ({ k, label, type: "text", ...extra });
+  const PATTERN_FIELDS = {
+    arcs: [
+      { legend: "Slots & spacing", fields: [
+        N("w", "Slot width", "mm", 0.1, { min: 0.2 }), N("ringGap", "Gap between rings", "mm", 0.1, { min: 0.2 }),
+        N("spokeMin", "Min. spoke width", "mm", 0.1, { min: 0.2, hint: "Material between slots in a ring" }), N("twist", "Ring rotation", "°", 1, { hint: "Extra turn per ring, staggers spokes" }),
+        N("hub", "Min. centre hub Ø", "mm", 0.5, { min: 0, hint: "Solid area in front of the fan motor" }),
+      ] },
+      { legend: "Slot lengths per ring", fields: [txt("lengths", "Target lengths, outer ring first", { unit: "mm", wide: true, shuffle: [8, 3, 12], hint: "Comma-separated. The list repeats if there are more rings than values." })] },
+    ],
+    slots: [
+      { legend: "Slot angle", angle: "angle" },
+      { legend: "Slots & spacing", fields: [
+        N("w", "Slot width", "mm", 0.1, { min: 0.2 }), sel("ends", "Slot ends", [["round", "Round (obround)"], ["square", "Square (rectangular)"]]),
+        N("rowGap", "Gap between rows", "mm", 0.1, { min: 0.2 }), N("web", "Gap between slot ends", "mm", 0.1, { min: 0.2 }),
+        N("minLen", "Shortest edge slot", "mm", 0.1, { min: 0.2 }), chk("stretch", "Stretch edge slots instead of leaving short gaps", { wide: true }),
+      ] },
+      { legend: "Slot lengths per row", fields: [txt("lengths", "Target lengths, centre row outward", { unit: "mm", wide: true, shuffle: [5, 3, 11], hint: "Comma-separated. Rows mirror around the centre row." })] },
+    ],
+    holes: [
+      { legend: "Hole size", fields: [
+        N("dCenter", "Hole Ø at centre", "mm", 0.1, { min: 0.1 }), N("dEdge", "Hole Ø at edge", "mm", 0.1, { min: 0.1, hint: "Larger than centre = growing outward" }),
+        N("curve", "Size curve", "×", 0.1, { min: 0.1, hint: "1 = linear, 2 = changes late, 0.5 = changes early" }),
+        sel("gradTo", "Edge size reached at", [["far", "Farthest point (corners)"], ["inscribed", "Nearest edge"]]),
+        N("minD", "Smallest hole kept", "mm", 0.1, { min: 0.05, hint: "Holes below this are left out" }),
+      ] },
+      { legend: "Layout & spacing", fields: [
+        sel("layout", "Arrangement", [["rings", "Concentric rings"], ["hex", "Hexagonal grid"], ["grid", "Square grid"]]),
+        N("web", "Min. material between holes", "mm", 0.1, { min: 0.1 }),
+        chk("centerHole", "Hole in the centre", { show: (p) => p.layout === "rings" }),
+        N("hub", "Solid centre Ø", "mm", 0.5, { min: 0, show: (p) => p.layout === "rings" && !p.centerHole }),
+        N("twist", "Ring rotation", "°", 1, { show: (p) => p.layout === "rings", hint: "Extra turn per ring" }),
+      ] },
+    ],
+    line: [
+      { legend: "Line as a slot", fields: [
+        N("w", "Slot width", "mm", 0.1, { min: 0.1 }), sel("ends", "Slot ends", [["round", "Round"], ["square", "Square"]]),
+        N("L", "Motif length", "mm", 0.5, { min: 0.5, hint: "Distance between the line's start and end" }), N("hScale", "Height scale", "×", 0.1, { hint: "Stretches the line's wiggle; 0 makes it straight" }),
+        N("minLen", "Shortest piece kept", "mm", 0.1, { min: 0, hint: "Short bits cut off at the edge are removed" }),
+      ] },
+      { legend: "Repeat", fields: [
+        sel("arrange", "Arrangement", [["rows", "Parallel rows"], ["radial", "Radial copies around centre"]], { wide: true }),
+        N("rowPitch", "Row spacing", "mm", 0.1, { min: 0.2, hint: "Centre to centre", show: (p) => p.arrange === "rows" }),
+        N("gap", "Gap between repeats", "mm", 0.1, { min: 0, hint: "0 joins copies into one continuous slot", show: (p) => p.arrange === "rows" }),
+        chk("stagger", "Offset alternate rows by half a repeat", { wide: true, show: (p) => p.arrange === "rows" }),
+        N("count", "Number of copies", "", 1, { min: 1, show: (p) => p.arrange === "radial" }),
+        N("r0", "Start radius", "mm", 0.5, { min: 0, show: (p) => p.arrange === "radial" }),
+        N("rotation", "Rotation", "°", 1, { show: (p) => p.arrange === "radial" }),
+        chk("mirror", "Mirror every second copy", { wide: true }),
+      ] },
+      { legend: "Row angle", angle: "angle", show: (p) => p.arrange === "rows" },
+    ],
+  };
+  const LINE_PRESETS = [["straight", "Straight"], ["wave", "Wave"], ["zigzag", "Zigzag"], ["chevron", "Chevron"], ["arc", "Arc"], ["scurve", "S-curve"], ["square", "Square wave"]];
+
+  /* ---------- state ---------- */
+  let state = clone(DEFAULTS);
   try {
-    const saved = JSON.parse(localStorage.getItem("ventgen.v1") || "null");
-    if (saved && saved.circle && saved.square) state = { shape: saved.shape === "square" ? "square" : "circle", circle: { ...DEFAULTS.circle, ...saved.circle }, square: { ...DEFAULTS.square, ...saved.square } };
-    if (saved && saved.square && saved.square.S && !saved.square.W) { state.square.W = state.square.H = saved.square.S; }
-    delete state.square.S;
+    const s = JSON.parse(localStorage.getItem("ventgen.v2") || "null");
+    if (s && s.circle && s.rect) {
+      for (const k of ["circle", "rect", "arcs", "slots", "holes", "line"]) state[k] = { ...DEFAULTS[k], ...(s[k] || {}) };
+      state.shape = s.shape === "rect" ? "rect" : "circle";
+      state.pattern = ["arcs", "slots", "holes", "line"].includes(s.pattern) ? s.pattern : "arcs";
+      if (isFinite(s.margin)) state.margin = s.margin;
+      if (!Array.isArray(state.line.points) || state.line.points.length < 2) state.line.points = G.presetLine("wave");
+    }
   } catch (e) {}
-  const persist = () => { try { localStorage.setItem("ventgen.v1", JSON.stringify(state)); } catch (e) {} };
+  const persist = () => { try { localStorage.setItem("ventgen.v2", JSON.stringify(state)); } catch (e) {} };
 
-  const $ = (id) => document.getElementById(id);
-  const pre = { circle: "c_", square: "s_" };
-  let geom = null;
+  /* ---------- field rendering ---------- */
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  function fieldHTML(group, f) {
+    const id = `${group}_${f.k}`, cls = `f${f.wide ? " wide" : ""}`, hint = f.hint ? `<small>${esc(f.hint)}</small>` : "";
+    if (f.type === "check") return `<div class="${cls}" data-show="${id}"><label class="toggle"><input id="${id}" type="checkbox">${esc(f.label)}</label></div>`;
+    if (f.type === "select") return `<div class="${cls}" data-show="${id}"><label for="${id}">${esc(f.label)}</label><div class="inp"><select id="${id}">${f.options.map(([v, t]) => `<option value="${v}">${esc(t)}</option>`).join("")}</select></div>${hint}</div>`;
+    if (f.type === "text") return `<div class="${cls}" data-show="${id}"><label for="${id}">${esc(f.label)}</label><div class="row"><div class="inp"><input id="${id}" type="text" inputmode="decimal"><span class="u">${f.unit || ""}</span></div>${f.shuffle ? `<button class="btn" type="button" data-shuffle="${id}">Shuffle</button>` : ""}</div>${hint}</div>`;
+    return `<div class="${cls}" data-show="${id}"><label for="${id}">${esc(f.label)}</label><div class="inp"><input id="${id}" type="number" step="${f.step}"${f.min !== undefined ? ` min="${f.min}"` : ""}><span class="u">${f.unit}</span></div>${hint}</div>`;
+  }
+  function angleHTML(group, k, legend, idx) {
+    const id = `${group}_${k}`;
+    return `<fieldset data-group-show="${group}:${idx}"><legend>${esc(legend)}</legend>
+      <div class="angle-row"><div class="inp"><input id="${id}" type="number" step="1" aria-label="${esc(legend)} in degrees"><span class="u">°</span></div>
+      <input id="${id}_range" type="range" min="0" max="180" step="1" aria-label="${esc(legend)} slider"></div>
+      <div class="presets">${[[0, "0° horizontal"], [30, "30°"], [45, "45° diagonal"], [60, "60°"], [90, "90° vertical"], [135, "135° mirrored"]].map(([a, t]) => `<button type="button" class="btn sm" data-angle="${a}" data-for="${id}">${t}</button>`).join("")}</div>
+      <small class="hint">Counter-clockwise from horizontal. Any value works, including decimals.</small></fieldset>`;
+  }
 
-  function fillInputs(shape) {
-    for (const k of KEYS[shape]) {
-      const el = $(pre[shape] + k);
-      if (el.type === "checkbox") el.checked = !!state[shape][k]; else el.value = state[shape][k];
+  function buildShapeFields() {
+    const defs = SHAPE_FIELDS[state.shape];
+    $("shapeFields").innerHTML = defs.map((f) => fieldHTML("shape", f)).join("");
+    for (const f of defs) {
+      const el = $(`shape_${f.k}`);
+      el.value = f.shared ? state.margin : state[state.shape][f.k];
+      el.addEventListener("input", () => {
+        const v = parseFloat(el.value); if (!isFinite(v)) return;
+        if (f.shared) state.margin = v; else state[state.shape][f.k] = v;
+        schedule();
+      });
     }
   }
-  function readInputs(shape) {
-    for (const k of KEYS[shape]) {
-      const el = $(pre[shape] + k);
-      if (el.type === "checkbox") state[shape][k] = el.checked;
-      else if (k === "lengths" || k === "ends") state[shape][k] = el.value;
-      else { const v = parseFloat(el.value); if (isFinite(v)) state[shape][k] = v; }
+
+  function buildPatternFields() {
+    const pat = state.pattern, groups = PATTERN_FIELDS[pat], p = state[pat];
+    $("patternFields").innerHTML = groups.map((g, i) => g.angle ? angleHTML(pat, g.angle, g.legend, i)
+      : `<fieldset data-group-show="${pat}:${i}"><legend>${esc(g.legend)}</legend><div class="grid">${g.fields.map((f) => fieldHTML(pat, f)).join("")}</div></fieldset>`).join("");
+    for (const g of groups) {
+      if (g.angle) {
+        const el = $(`${pat}_${g.angle}`), rng = $(`${pat}_${g.angle}_range`);
+        el.value = p[g.angle];
+        el.addEventListener("input", () => { const v = parseFloat(el.value); if (isFinite(v)) { p[g.angle] = v; schedule(); } });
+        rng.addEventListener("input", () => { p[g.angle] = +rng.value; el.value = rng.value; schedule(); });
+        continue;
+      }
+      for (const f of g.fields) {
+        const el = $(`${pat}_${f.k}`);
+        if (f.type === "check") el.checked = !!p[f.k]; else el.value = p[f.k];
+        const ev = f.type === "check" || f.type === "select" ? "change" : "input";
+        el.addEventListener(ev, () => {
+          if (f.type === "check") p[f.k] = el.checked;
+          else if (f.type === "select" || f.type === "text") p[f.k] = el.value;
+          else { const v = parseFloat(el.value); if (!isFinite(v)) return; p[f.k] = v; }
+          if (f.type === "check" || f.type === "select") updateVisibility();
+          schedule();
+        });
+      }
     }
+    $("patternFields").querySelectorAll("[data-angle]").forEach((b) => b.addEventListener("click", () => {
+      const id = b.dataset.for, k = id.slice(pat.length + 1);
+      p[k] = +b.dataset.angle; $(id).value = p[k]; schedule();
+    }));
+    $("patternFields").querySelectorAll("[data-shuffle]").forEach((b) => b.addEventListener("click", () => {
+      const id = b.dataset.shuffle, k = id.slice(pat.length + 1);
+      const def = groups.flatMap((g) => g.fields || []).find((f) => f.k === k);
+      const [n, lo0, hi] = def.shuffle, lo = Math.max(lo0, (p.w || 1) * 2.5);
+      p[k] = Array.from({ length: n }, () => +(lo + Math.random() * (hi - lo)).toFixed(1)).join(", ");
+      $(id).value = p[k]; schedule();
+    }));
+    updateVisibility();
   }
 
-  function fileBase() {
-    if (state.shape === "circle") return `fan_vent_circle_${fmt(state.circle.D)}mm`;
-    const q = state.square, kind = +q.W === +q.H ? "square" : "rect";
-    return `fan_vent_${kind}_${fmt(q.W)}x${fmt(q.H)}mm_${fmt(q.angle)}deg${q.ends === "square" ? "_rectslots" : ""}`;
+  function updateVisibility() {
+    const pat = state.pattern, groups = PATTERN_FIELDS[pat], p = state[pat];
+    groups.forEach((g, i) => {
+      const fs = document.querySelector(`[data-group-show="${pat}:${i}"]`);
+      if (fs) fs.hidden = g.show ? !g.show(p) : false;
+      for (const f of g.fields || []) {
+        const wrap = document.querySelector(`[data-show="${pat}_${f.k}"]`);
+        if (wrap) wrap.hidden = f.show ? !f.show(p) : false;
+      }
+    });
   }
+
+  /* ---------- shape & pattern switching ---------- */
+  function setShape(s) {
+    state.shape = s;
+    $("shape_circle").setAttribute("aria-pressed", s === "circle");
+    $("shape_rect").setAttribute("aria-pressed", s === "rect");
+    $("pat_arcs").disabled = s !== "circle";
+    $("patHint").hidden = s === "circle";
+    buildShapeFields();
+    if (s !== "circle" && state.pattern === "arcs") setPattern("slots"); else render();
+  }
+  function setPattern(p) {
+    if (p === "arcs" && state.shape !== "circle") return;
+    state.pattern = p;
+    for (const k of ["arcs", "slots", "holes", "line"]) $(`pat_${k}`).setAttribute("aria-pressed", k === p);
+    $("lineEditor").hidden = p !== "line";
+    buildPatternFields();
+    if (p === "line") drawEditor();
+    setStatus("");
+    render();
+  }
+
+  /* ---------- line editor ---------- */
+  const editor = $("editor");
+  let view = { x0: -1, y0: -4, w: 12, h: 8 / 1 }, drag = -1;
+  function fitView() {
+    const pts = state.line.points;
+    const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+    let x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+    let w = Math.max(x1 - x0, 1), h = Math.max(y1 - y0, 1);
+    const aspect = 2.2;
+    if (w / h < aspect) w = h * aspect; else h = w / aspect;
+    const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+    view = { w: w * 1.25, h: h * 1.25 };
+    view.x0 = cx - view.w / 2; view.y0 = cy - view.h / 2;
+  }
+  function drawEditor(keepView) {
+    if (!keepView) fitView();
+    const { x0, y0, w, h } = view, pts = state.line.points;
+    editor.setAttribute("viewBox", `${x0} ${-y0 - h} ${w} ${h}`);
+    const step = Math.pow(10, Math.floor(Math.log10(w / 4)));
+    let grid = "";
+    for (let x = Math.ceil(x0 / step) * step; x <= x0 + w; x += step) grid += `<line class="gl" x1="${x}" y1="${-y0 - h}" x2="${x}" y2="${-y0}"/>`;
+    for (let y = Math.ceil(y0 / step) * step; y <= y0 + h; y += step) grid += `<line class="gl" x1="${x0}" y1="${-y}" x2="${x0 + w}" y2="${-y}"/>`;
+    grid += `<line class="ax" x1="${x0}" y1="0" x2="${x0 + w}" y2="0"/>`;
+    const r = w / 90;
+    const line = `<polyline class="ln" points="${pts.map((p) => `${p[0]},${-p[1]}`).join(" ")}"/>`;
+    const handles = pts.length <= 80 ? pts.map((p, i) => `<circle class="pt${i === 0 || i === pts.length - 1 ? " end" : ""}" data-i="${i}" cx="${p[0]}" cy="${-p[1]}" r="${r}"/>`).join("") : "";
+    editor.innerHTML = grid + line + handles;
+    $("lineCoords").value = pts.map((p) => `${+p[0].toFixed(3)}, ${+p[1].toFixed(3)}`).join("\n");
+    document.querySelectorAll("#linePresets [data-preset]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.preset === state.line.preset));
+  }
+  function toEditor(ev) {
+    const pt = editor.createSVGPoint(); pt.x = ev.clientX; pt.y = ev.clientY;
+    const q = pt.matrixTransform(editor.getScreenCTM().inverse());
+    return [q.x, -q.y];
+  }
+  editor.addEventListener("pointerdown", (ev) => {
+    const t = ev.target;
+    if (t.classList && t.classList.contains("pt")) { drag = +t.dataset.i; editor.setPointerCapture(ev.pointerId); return; }
+    const p = toEditor(ev);
+    state.line.points.push([+p[0].toFixed(3), +p[1].toFixed(3)]);
+    state.line.preset = "";
+    drawEditor(true); schedule();
+  });
+  editor.addEventListener("pointermove", (ev) => {
+    if (drag < 0) return;
+    const p = toEditor(ev);
+    state.line.points[drag] = [+p[0].toFixed(3), +p[1].toFixed(3)];
+    state.line.preset = "";
+    drawEditor(true); schedule();
+  });
+  const endDrag = () => { if (drag >= 0) { drag = -1; drawEditor(); } };
+  editor.addEventListener("pointerup", endDrag);
+  editor.addEventListener("pointercancel", endDrag);
+  editor.addEventListener("dblclick", (ev) => {
+    const t = ev.target;
+    if (t.classList && t.classList.contains("pt") && state.line.points.length > 2) {
+      state.line.points.splice(+t.dataset.i, 1); state.line.preset = ""; drawEditor(); schedule();
+    }
+  });
+  $("linePresets").innerHTML = LINE_PRESETS.map(([k, t]) => `<button type="button" class="btn sm" data-preset="${k}">${t}</button>`).join("");
+  $("linePresets").addEventListener("click", (ev) => {
+    const b = ev.target.closest("[data-preset]"); if (!b) return;
+    state.line.points = G.presetLine(b.dataset.preset); state.line.preset = b.dataset.preset;
+    drawEditor(); schedule();
+  });
+  $("lineUndo").addEventListener("click", () => { if (state.line.points.length > 2) { state.line.points.pop(); state.line.preset = ""; drawEditor(); schedule(); } });
+  $("lineReverse").addEventListener("click", () => { state.line.points.reverse(); state.line.preset = ""; drawEditor(); schedule(); });
+  $("lineFlip").addEventListener("click", () => { state.line.points = state.line.points.map(([x, y]) => [x, -y]); state.line.preset = ""; drawEditor(); schedule(); });
+  $("lineApply").addEventListener("click", () => {
+    const pts = G.parseCoords($("lineCoords").value);
+    if (!pts) { setStatus("Enter at least two points, as x, y pairs."); return; }
+    state.line.points = pts; state.line.preset = ""; drawEditor(); schedule(); setStatus(`Using ${pts.length} points.`);
+  });
+  $("lineFile").addEventListener("change", (ev) => {
+    const file = ev.target.files && ev.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      let pts = null;
+      try { pts = /\.svg$/i.test(file.name) || /^\s*<(\?xml|svg)/i.test(reader.result) ? svgToPoints(reader.result) : G.parseDXFLine(reader.result); } catch (e) { pts = null; }
+      if (!pts || pts.length < 2) { setStatus(`No line found in ${file.name}. The file needs a line, polyline, arc, spline or SVG path.`); return; }
+      if (pts.length > 2000) { const s = Math.ceil(pts.length / 2000); pts = pts.filter((_, i) => i % s === 0 || i === pts.length - 1); }
+      state.line.points = pts.map(([x, y]) => [+x.toFixed(4), +y.toFixed(4)]); state.line.preset = "";
+      drawEditor(); schedule(); setStatus(`Imported a line with ${pts.length} points from ${file.name}.`);
+    };
+    reader.readAsText(file);
+    ev.target.value = "";
+  });
+  function svgToPoints(text) {
+    const doc = new DOMParser().parseFromString(text, "image/svg+xml");
+    const el = doc.querySelector("path, polyline, polygon, line");
+    if (!el) return null;
+    if (el.tagName === "line") return [["x1", "y1"], ["x2", "y2"]].map(([a, b]) => [parseFloat(el.getAttribute(a)) || 0, -(parseFloat(el.getAttribute(b)) || 0)]);
+    if (el.tagName === "polyline" || el.tagName === "polygon") { const p = G.parseCoords(el.getAttribute("points")); return p && p.map(([x, y]) => [x, -y]); }
+    const ns = "http://www.w3.org/2000/svg", host = document.createElementNS(ns, "svg"), path = document.createElementNS(ns, "path");
+    host.setAttribute("width", "0"); host.setAttribute("height", "0"); host.style.position = "absolute";
+    path.setAttribute("d", el.getAttribute("d") || ""); host.appendChild(path); document.body.appendChild(host);
+    const len = path.getTotalLength(), n = Math.min(600, Math.max(40, Math.ceil(len * 4))), out = [];
+    for (let i = 0; i <= n; i++) { const q = path.getPointAtLength((len * i) / n); out.push([q.x, -q.y]); }
+    host.remove();
+    return out;
+  }
+
+  /* ---------- render ---------- */
+  let geom = null, raf = 0;
+  const schedule = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(render); };
   const fmt = (x) => String(+(+x).toFixed(2)).replace(".", "p");
   const n1 = (x) => (+x).toFixed(1);
+  const num = (x) => +(+x).toFixed(2);
 
-  function compute() {
-    const p = state[state.shape];
-    const safe = { ...p };
-    for (const k of ["w", "ringGap", "spokeMin", "rowGap", "web", "minLen"]) if (k in safe) safe[k] = Math.max(0.05, +safe[k]);
-    if ("D" in safe) safe.D = Math.max(1, safe.D);
-    if ("W" in safe) { safe.W = Math.max(1, safe.W); safe.H = Math.max(1, safe.H); }
-    geom = state.shape === "circle" ? G.circlePattern(safe) : G.squarePattern(safe);
+  function options() {
+    const o = { shape: state.shape, margin: Math.max(0, +state.margin), pattern: state.pattern, ...state[state.shape], ...state[state.pattern] };
+    for (const k of ["w", "ringGap", "spokeMin", "rowGap", "web", "minLen", "rowPitch"]) if (k in o) o[k] = Math.max(0.05, +o[k]);
+    return o;
   }
+  function fileBase() {
+    const s = state.shape === "circle" ? `circle_${fmt(state.circle.D)}mm` : `${+state.rect.W === +state.rect.H ? "square" : "rect"}_${fmt(state.rect.W)}x${fmt(state.rect.H)}mm`;
+    const p = state.pattern, q = state[p];
+    const tail = p === "arcs" ? "arcs" : p === "slots" ? `slots_${fmt(q.angle)}deg` : p === "holes" ? `holes_${q.layout}_${fmt(q.dCenter)}-${fmt(q.dEdge)}mm` : `line_${q.arrange}`;
+    return `fan_vent_${s}_${tail}`;
+  }
+  const PATTERN_NAMES = { arcs: "concentric arc slots", slots: "straight slots", holes: "graded holes", line: "custom line" };
 
   function render() {
-    compute();
+    geom = G.generate(options());
     const g = geom, E = g.extent, pad = Math.max(3, E * 0.2);
     const svg = $("drawing");
     svg.setAttribute("viewBox", `${-E - pad} ${-E - pad} ${2 * (E + pad)} ${2 * (E + pad)}`);
     const fs = Math.max(0.9, E * 0.065);
     let outline, dim;
     if (g.outline.type === "circle") {
+      const yb = E + pad * 0.7;
       outline = `<circle class="ol" cx="0" cy="0" r="${E}"/>`;
-      dim = `<path class="dim" d="M${-E} ${E + pad * 0.7}H${E}M${-E} ${E + pad * 0.55}V${E + pad * 0.85}M${E} ${E + pad * 0.55}V${E + pad * 0.85}"/>` +
-        `<text x="0" y="${E + pad * 0.7 - fs * 0.3}" font-size="${fs}" text-anchor="middle">Ø${+(+state.circle.D).toFixed(2)}</text>`;
+      dim = `<path class="dim" d="M${-E} ${yb}H${E}M${-E} ${yb - pad * 0.15}V${yb + pad * 0.15}M${E} ${yb - pad * 0.15}V${yb + pad * 0.15}"/><text x="0" y="${yb - fs * 0.3}" font-size="${fs}" text-anchor="middle">Ø${num(state.circle.D)}</text>`;
     } else {
-      const hx = g.outline.hx, hy = g.outline.hy, yb = hy + pad * 0.7, xr = hx + pad * 0.7;
+      const { hx, hy } = g.outline, yb = hy + pad * 0.7, xr = hx + pad * 0.7;
       outline = `<path class="ol" d="${G.polyToPath(G.outlinePoly(g.outline))}" transform="scale(1,-1)"/>`;
-      dim = `<path class="dim" d="M${-hx} ${yb}H${hx}M${-hx} ${yb - pad * 0.15}V${yb + pad * 0.15}M${hx} ${yb - pad * 0.15}V${yb + pad * 0.15}` +
-        `M${xr} ${-hy}V${hy}M${xr - pad * 0.15} ${-hy}H${xr + pad * 0.15}M${xr - pad * 0.15} ${hy}H${xr + pad * 0.15}"/>` +
-        `<text x="0" y="${yb - fs * 0.3}" font-size="${fs}" text-anchor="middle">${+(+state.square.W).toFixed(2)}</text>` +
-        `<text x="${xr - fs * 0.3}" y="0" font-size="${fs}" text-anchor="middle" transform="rotate(-90 ${xr - fs * 0.3} 0)">${+(+state.square.H).toFixed(2)}</text>`;
+      dim = `<path class="dim" d="M${-hx} ${yb}H${hx}M${-hx} ${yb - pad * 0.15}V${yb + pad * 0.15}M${hx} ${yb - pad * 0.15}V${yb + pad * 0.15}M${xr} ${-hy}V${hy}M${xr - pad * 0.15} ${-hy}H${xr + pad * 0.15}M${xr - pad * 0.15} ${hy}H${xr + pad * 0.15}"/>` +
+        `<text x="0" y="${yb - fs * 0.3}" font-size="${fs}" text-anchor="middle">${num(state.rect.W)}</text>` +
+        `<text x="${xr - fs * 0.3}" y="0" font-size="${fs}" text-anchor="middle" transform="rotate(-90 ${xr - fs * 0.3} 0)">${num(state.rect.H)}</text>`;
     }
     const cm = `<path class="cm" d="M${-E - pad * 0.3} 0H${E + pad * 0.3}M0 ${-E - pad * 0.3}V${E + pad * 0.3}"/>`;
-    const slots = g.slots.map((s) => `<path class="sl" d="${G.polyToPath(s)}"/>`).join("");
-    svg.innerHTML = cm + outline + `<g transform="scale(1,-1)">${slots}</g>` + dim;
+    const cuts = g.polys.map((s) => `<path class="sl" d="${G.polyToPath(s)}"/>`).join("") + g.circles.map((c) => `<circle class="sl" cx="${c.x}" cy="${c.y}" r="${c.r}"/>`).join("");
+    svg.innerHTML = cm + outline + `<g transform="scale(1,-1)">${cuts}</g>` + dim;
 
-    // stats
-    $("sSlots").textContent = g.slots.length;
+    const pat = state.pattern, isHoles = pat === "holes", byRing = pat === "arcs" || (isHoles && state.holes.layout === "rings");
+    $("sCount").textContent = g.count;
+    $("sCountLbl").textContent = isHoles ? "Holes" : "Slots";
     $("sOpen").textContent = g.outlineArea > 0 ? (100 * g.area / g.outlineArea).toFixed(1) + "%" : "–";
     $("sMm2").textContent = Math.round(g.area);
     $("sRows").textContent = g.rows.length;
-    $("sRowsLbl").textContent = state.shape === "circle" ? "Rings" : "Rows";
-
-    const isC = state.shape === "circle";
-    $("sheetTitle").textContent = isC
-      ? `Ø${+(+state.circle.D).toFixed(2)} circle · concentric arcs`
-      : `${+(+state.square.W).toFixed(2)} × ${+(+state.square.H).toFixed(2)} ${+state.square.W === +state.square.H ? "square" : "rectangle"} · ${+(+state.square.angle).toFixed(1)}° ${state.square.ends === "square" ? "rectangular" : "round-end"} slots`;
+    $("sRowsLbl").textContent = pat === "line" ? "Pieces" : byRing ? "Rings" : "Rows";
+    const shapeName = state.shape === "circle" ? `Ø${num(state.circle.D)} circle` : `${num(state.rect.W)} × ${num(state.rect.H)} ${+state.rect.W === +state.rect.H ? "square" : "rectangle"}`;
+    $("sheetTitle").textContent = `${shapeName} · ${PATTERN_NAMES[pat]}`;
     $("fileName").textContent = fileBase();
 
-    // checks
-    const p = state[state.shape];
-    const rib = isC ? p.ringGap : p.rowGap, spoke = isC ? p.spokeMin : p.web;
-    const minRib = Math.min(rib, spoke);
-    const chips = [];
-    chips.push(minRib >= 0.8 ? [`Thinnest rib ${n1(minRib)} mm`, false] : [`Rib ${n1(minRib)} mm is thin for a 0.4 mm nozzle`, true]);
-    chips.push(p.w >= 0.6 ? [`Slot width ${n1(p.w)} mm`, false] : [`Slots under 0.6 mm tend to close up when printed`, true]);
-    if (p.margin < 0.8) chips.push([`Border ${n1(p.margin)} mm is fragile`, true]);
-    if (!g.slots.length) chips.push(["No slots fit with these settings", true]);
-    if (isC && g.hubD) chips.push([`Centre hub Ø${n1(g.hubD)} mm`, false]);
-    $("checks").innerHTML = chips.map(([t, w]) => `<span class="chip${w ? " warn" : ""}">${t}</span>`).join("");
+    const p = state[pat], chips = [];
+    if (g.minRib != null) chips.push(g.minRib >= 0.8 ? [`Thinnest rib ${n1(g.minRib)} mm`, false] : [`Rib ${n1(g.minRib)} mm is thin for a 0.4 mm nozzle`, true]);
+    if (isHoles) {
+      if (g.info && g.circles.length) chips.push(g.info.dMin >= 1 ? [`Holes Ø${n1(g.info.dMin)}–${n1(g.info.dMax)} mm`, false] : [`Holes under Ø1 mm print undersized on FDM printers`, true]);
+    } else chips.push(p.w >= 0.6 ? [`Slot width ${n1(p.w)} mm`, false] : [`Slots under 0.6 mm tend to close up when printed`, true]);
+    if (state.margin < 0.8) chips.push([`Border ${n1(state.margin)} mm is fragile`, true]);
+    if (pat === "arcs" && g.info && g.info.hubD) chips.push([`Centre hub Ø${n1(g.info.hubD)} mm`, false]);
+    for (const w of g.warnings) chips.push([w, true]);
+    if (!g.count && !g.warnings.length) chips.push(["No cutouts fit with these settings", true]);
+    $("checks").innerHTML = chips.map(([t, w]) => `<span class="chip${w ? " warn" : ""}">${esc(t)}</span>`).join("");
 
-    // table
-    $("tblSummary").textContent = isC ? "Ring breakdown" : "Row breakdown";
-    const head = isC ? "<tr><th>Ring radius</th><th>Slots</th><th>Slot length</th></tr>" : "<tr><th>Row offset</th><th>Slots</th><th>Target length</th></tr>";
-    const rows = g.rows.map((r) => isC
-      ? `<tr><td>${r.r.toFixed(2)}</td><td>${r.n}</td><td>${r.len.toFixed(2)}</td></tr>`
-      : `<tr><td>${r.v.toFixed(2)}</td><td>${r.n}</td><td>${r.len.toFixed(2)}</td></tr>`).join("");
-    $("tbl").innerHTML = head + rows;
-    const ang = +state.square.angle || 0;
-    const rng = $("s_angleRange");
-    if (document.activeElement !== rng) rng.value = ((ang % 180) + 180) % 180;
-    $("angleNeedle").setAttribute("transform", `rotate(${-ang})`);
-    document.querySelectorAll(".presets [data-angle]").forEach((b) => b.setAttribute("aria-pressed", +b.dataset.angle === ang));
+    const H = pat === "arcs" ? ["Ring radius", "Slots", "Slot length"] : pat === "slots" ? ["Row offset", "Slots", "Target length"]
+      : isHoles ? [byRing ? "Ring radius" : "Row y", "Holes", byRing ? "Hole Ø" : "Hole Ø on axis"] : ["Piece", "", "Length"];
+    $("tblSummary").textContent = `${byRing ? "Ring" : pat === "line" ? "Piece" : "Row"} breakdown`;
+    const rng = $(`${pat}_angle_range`);
+    if (rng) {
+      if (document.activeElement !== rng) rng.value = (((+p.angle || 0) % 180) + 180) % 180;
+      document.querySelectorAll(`[data-for="${pat}_angle"]`).forEach((b) => b.setAttribute("aria-pressed", +b.dataset.angle === +p.angle));
+    }
+    $("tbl").innerHTML = `<tr>${H.map((h) => `<th>${h}</th>`).join("")}</tr>` +
+      g.rows.map((r) => `<tr><td>${pat === "line" ? r.pos : r.pos.toFixed(2)}</td><td>${pat === "line" ? "" : r.n}</td><td>${r.size.toFixed(2)}</td></tr>`).join("");
     persist();
   }
 
-  function setShape(shape) {
-    state.shape = shape;
-    $("btnCircle").setAttribute("aria-pressed", shape === "circle");
-    $("btnSquare").setAttribute("aria-pressed", shape === "square");
-    $("circleFields").hidden = shape !== "circle";
-    $("squareFields").hidden = shape !== "square";
-    setStatus("");
-    render();
-  }
-
-  function shuffle(shape) {
-    const w = state[shape].w || 1;
-    const n = shape === "circle" ? 8 : 5;
-    const lo = Math.max(w * 2.5, 3), hi = shape === "circle" ? 12 : 11;
-    const vals = Array.from({ length: n }, () => +(lo + Math.random() * (hi - lo)).toFixed(1));
-    state[shape].lengths = vals.join(", ");
-    $(pre[shape] + "lengths").value = state[shape].lengths;
-    render();
-  }
-
+  /* ---------- export ---------- */
   function setStatus(t) { $("status").textContent = t; }
-
-  // Inside Claude the page saves through the viewer's download prompt (fixed file types, so DXF goes out as .dxf.txt).
-  // Anywhere else (GitHub Pages, a local file) it uses an ordinary browser download with the real .dxf extension.
   const inClaude = !!(window.claude && window.claude.use);
   let downloads = null;
   if (inClaude) window.claude.use("downloads").then((d) => { downloads = d; }).catch(() => {});
-  else {
-    const note = document.getElementById("dxfNote");
-    if (note) note.innerHTML = "Opens in Fusion 360, FreeCAD, Onshape, SolidWorks or LibreCAD. Layers: OUTLINE and SLOTS, units mm.";
-  }
+  else $("dxfNote").textContent = "Opens in Fusion 360, FreeCAD, Onshape, SolidWorks or LibreCAD. Layers: OUTLINE and CUTOUTS, units mm.";
   function browserSave(filename, data) {
-    const mime = filename.endsWith(".svg") ? "image/svg+xml" : "application/dxf";
-    const url = URL.createObjectURL(new Blob([data], { type: mime }));
-    const a = document.createElement("a");
-    a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+    const url = URL.createObjectURL(new Blob([data], { type: filename.endsWith(".svg") ? "image/svg+xml" : "application/dxf" }));
+    const a = document.createElement("a"); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     setStatus(`Downloaded ${filename}`);
   }
   async function save(filename, data) {
     if (!inClaude) { browserSave(filename.replace(/\.dxf\.txt$/, ".dxf"), data); return; }
     if (!downloads) { setStatus("Saving files isn't available in this view. Use Copy DXF text and paste it into a file named .dxf."); return; }
-    try {
-      await downloads.save({ filename, data });
-      setStatus(`Saved ${filename}`);
-    } catch (e) {
+    try { await downloads.save({ filename, data }); setStatus(`Saved ${filename}`); }
+    catch (e) {
       const code = e && e.code;
-      if (code === "declined") setStatus("Save cancelled.");
-      else if (code === "rate_limited") setStatus("A save prompt is already open. Finish that one first.");
-      else setStatus("Saving files isn't available in this view. Use Copy DXF text instead.");
+      setStatus(code === "declined" ? "Save cancelled." : code === "rate_limited" ? "A save prompt is already open. Finish that one first." : "Saving files isn't available in this view. Use Copy DXF text instead.");
     }
   }
-
   $("saveDxf").addEventListener("click", () => save(fileBase() + ".dxf.txt", G.toDXF(geom)));
   $("saveSvg").addEventListener("click", () => save(fileBase() + ".svg", G.toSVG(geom)));
   $("copyDxf").addEventListener("click", () => {
-    const text = G.toDXF(geom);
+    const text = G.toDXF(geom), done = "DXF copied. Paste it into a text file and save it as .dxf.";
     const fallback = () => {
-      const ta = document.createElement("textarea");
-      ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
-      document.body.appendChild(ta); ta.select();
-      let ok = false; try { ok = document.execCommand("copy"); } catch (e) {}
-      ta.remove();
-      setStatus(ok ? "DXF copied. Paste it into a text file and save it as .dxf." : "Copy isn't allowed here. Use Save DXF instead.");
+      const ta = document.createElement("textarea"); ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select(); let ok = false; try { ok = document.execCommand("copy"); } catch (e) {} ta.remove();
+      setStatus(ok ? done : "Copy isn't allowed here. Use Save DXF instead.");
     };
-    try {
-      navigator.clipboard.writeText(text).then(() => setStatus("DXF copied. Paste it into a text file and save it as .dxf."), fallback);
-    } catch (e) { fallback(); }
+    try { navigator.clipboard.writeText(text).then(() => setStatus(done), fallback); } catch (e) { fallback(); }
   });
   $("reset").addEventListener("click", () => {
-    state[state.shape] = clone(DEFAULTS[state.shape]);
-    fillInputs(state.shape); setStatus("Reset to defaults."); render();
+    state[state.pattern] = clone(DEFAULTS[state.pattern]);
+    buildPatternFields(); if (state.pattern === "line") drawEditor();
+    setStatus("Pattern reset to defaults."); render();
   });
-  $("btnCircle").addEventListener("click", () => setShape("circle"));
-  $("btnSquare").addEventListener("click", () => setShape("square"));
-  const setAngle = (a) => { state.square.angle = a; $("s_angle").value = a; render(); };
-  $("s_angleRange").addEventListener("input", (e) => setAngle(+e.target.value));
-  document.querySelectorAll(".presets [data-angle]").forEach((b) => b.addEventListener("click", () => setAngle(+b.dataset.angle)));
-  $("c_rand").addEventListener("click", () => shuffle("circle"));
-  $("s_rand").addEventListener("click", () => shuffle("square"));
 
-  let raf = 0;
-  for (const shape of ["circle", "square"]) {
-    for (const k of KEYS[shape]) {
-      const el = $(pre[shape] + k);
-      el.addEventListener(el.type === "checkbox" || el.tagName === "SELECT" ? "change" : "input", () => {
-        readInputs(shape);
-        cancelAnimationFrame(raf); raf = requestAnimationFrame(render);
-      });
-    }
-    fillInputs(shape);
-  }
+  $("shape_circle").addEventListener("click", () => setShape("circle"));
+  $("shape_rect").addEventListener("click", () => setShape("rect"));
+  for (const k of ["arcs", "slots", "holes", "line"]) $(`pat_${k}`).addEventListener("click", () => setPattern(k));
+
   setShape(state.shape);
+  setPattern(state.pattern);
 })();
 </script>
 </body>
