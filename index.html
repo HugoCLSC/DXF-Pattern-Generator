@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Parametric fan vent pattern generator with DXF and SVG export.">
+<style>[hidden]{display:none!important} img{max-width:100%} body{margin:0}</style>
+<title>Fan Vent Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: drawing sheet on the left (sticky on desktop), parameter panel on the right; stacks on phones. */
+:root {
+  --paper: #EEF0EE;
+  --sheet: #FBFCFB;
+  --ink: #1B2220;
+  --muted: #5B6763;
+  --rule: #D3D9D6;
+  --cut: #D23A22;
+  --cut-fill: rgba(210, 58, 34, 0.10);
+  --field: #FFFFFF;
+  --warn: #9A6A00;
+  --warn-bg: #FFF4D6;
+  --good: #2F7A52;
+  --font-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #101413; --sheet: #171C1B; --ink: #E4E9E7; --muted: #95A29D; --rule: #2C3432;
+    --cut: #FF6B4E; --cut-fill: rgba(255, 107, 78, 0.13); --field: #1E2423;
+    --warn: #F2C14E; --warn-bg: #2D2612; --good: #6FCB97; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #101413; --sheet: #171C1B; --ink: #E4E9E7; --muted: #95A29D; --rule: #2C3432;
+  --cut: #FF6B4E; --cut-fill: rgba(255, 107, 78, 0.13); --field: #1E2423;
+  --warn: #F2C14E; --warn-bg: #2D2612; --good: #6FCB97; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--paper); color: var(--ink); font-family: var(--font-body); font-size: 14px; line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 32px;
+}
+.wrap { max-width: 1180px; margin: 0 auto; display: grid; gap: 18px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; }
+h1 { font-family: var(--font-display); font-weight: 600; font-size: 26px; letter-spacing: 0.01em; margin: 0; text-wrap: balance; }
+header p { margin: 0; color: var(--muted); max-width: 62ch; }
+
+.main { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 860px) { .main { grid-template-columns: minmax(0, 1fr); } }
+
+.sheet { background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: 14px; display: grid; gap: 12px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); }
+@media (max-width: 860px) { .sheet { position: static; } }
+.sheet-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.sheet-head .name { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.drawing { width: 100%; aspect-ratio: 1; max-width: 100%; display: block; }
+.drawing .ol { fill: none; stroke: var(--ink); stroke-width: 1.2px; vector-effect: non-scaling-stroke; }
+.drawing .sl { fill: var(--cut-fill); stroke: var(--cut); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.drawing .cm { stroke: var(--muted); stroke-width: 0.8px; vector-effect: non-scaling-stroke; stroke-dasharray: 6 3 1 3; }
+.drawing .dim { stroke: var(--muted); stroke-width: 0.8px; vector-effect: non-scaling-stroke; fill: none; }
+.drawing text { fill: var(--muted); font-family: var(--font-mono); }
+
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); border-radius: 4px; overflow: hidden; }
+@media (max-width: 480px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.stat { background: var(--sheet); padding: 8px 10px; display: grid; gap: 2px; }
+.stat b { font-family: var(--font-mono); font-weight: 500; font-size: 17px; font-variant-numeric: tabular-nums; }
+.stat span { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+
+.checks { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: 12px; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--rule); color: var(--good); }
+.chip.warn { color: var(--warn); background: var(--warn-bg); border-color: transparent; }
+
+.panel { display: grid; gap: 14px; }
+.shape-switch { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; background: var(--sheet); }
+.shape-switch button { font: 600 14px var(--font-body); color: var(--muted); background: transparent; border: 0; padding: 10px 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.shape-switch button + button { border-left: 1px solid var(--rule); }
+.shape-switch button[aria-pressed="true"] { color: var(--ink); background: var(--field); box-shadow: inset 0 -2px 0 var(--cut); }
+.shape-switch svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.4; }
+
+fieldset { border: 1px solid var(--rule); border-radius: 6px; margin: 0; padding: 12px; background: var(--sheet); display: grid; gap: 10px; min-width: 0; }
+legend { font-family: var(--font-display); font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; padding: 0 6px; color: var(--muted); }
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; }
+@media (max-width: 420px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.f { display: grid; gap: 4px; min-width: 0; }
+.f label { font-size: 12.5px; font-weight: 500; }
+.f small { font-size: 11.5px; color: var(--muted); }
+.inp { display: flex; align-items: center; border: 1px solid var(--rule); border-radius: 4px; background: var(--field); }
+.inp:focus-within { outline: 2px solid var(--cut); outline-offset: 1px; }
+.inp input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--ink); font: 500 14px var(--font-mono); padding: 7px 8px; font-variant-numeric: tabular-nums; outline: none; }
+.inp select { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--ink); font: 500 13.5px var(--font-body); padding: 7px 6px; outline: none; }
+.inp .u { font: 12px var(--font-mono); color: var(--muted); padding-right: 8px; }
+.row { display: flex; gap: 8px; align-items: stretch; flex-wrap: wrap; }
+.row .inp { flex: 1 1 180px; }
+.toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+.toggle input { width: 16px; height: 16px; accent-color: var(--cut); }
+
+.btn { font: 600 13.5px var(--font-body); border-radius: 4px; padding: 8px 12px; cursor: pointer; border: 1px solid var(--rule); background: var(--field); color: var(--ink); }
+.btn:hover { border-color: var(--muted); }
+.btn:focus-visible, .shape-switch button:focus-visible { outline: 2px solid var(--cut); outline-offset: 2px; }
+.btn.primary { background: var(--cut); color: #fff; border-color: var(--cut); }
+.btn.primary:hover { filter: brightness(1.07); }
+.export { display: grid; gap: 8px; }
+.angle-row { display: grid; grid-template-columns: 96px minmax(0, 1fr) 30px; gap: 12px; align-items: center; }
+.angle-row input[type="range"] { width: 100%; accent-color: var(--cut); }
+.angle-dial { width: 30px; height: 30px; }
+.angle-dial circle { fill: none; stroke: var(--rule); stroke-width: 1.2; }
+.angle-dial line { stroke: var(--cut); stroke-width: 2.2; stroke-linecap: round; }
+.presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.btn.sm { font-size: 12px; padding: 5px 9px; font-weight: 500; }
+.btn.sm[aria-pressed="true"] { border-color: var(--cut); color: var(--cut); }
+.export .row .btn { flex: 1 1 auto; }
+.note { font-size: 12px; color: var(--muted); margin: 0; }
+.status { font-size: 12.5px; min-height: 1.2em; margin: 0; }
+
+details { border-top: 1px solid var(--rule); padding-top: 8px; }
+summary { cursor: pointer; font-size: 12.5px; color: var(--muted); }
+.tbl-wrap { overflow-x: auto; margin-top: 8px; max-height: 220px; overflow-y: auto; }
+table { border-collapse: collapse; width: 100%; font: 12px var(--font-mono); font-variant-numeric: tabular-nums; }
+th, td { text-align: right; padding: 3px 8px; border-bottom: 1px solid var(--rule); }
+th { color: var(--muted); font-weight: 500; position: sticky; top: 0; background: var(--sheet); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Fan Vent Generator</h1>
+    <p>Concentric arc slots for round vents, angled slots for square and rectangular ones. Every dimension is in millimetres and the drawing updates as you type.</p>
+  </header>
+
+  <div class="main">
+    <section class="sheet" aria-label="Pattern preview">
+      <div class="sheet-head">
+        <strong id="sheetTitle">Ø38 circle · concentric arcs</strong>
+        <span class="name" id="fileName">fan_vent_circle_38mm</span>
+      </div>
+      <svg class="drawing" id="drawing" role="img" aria-label="Vent pattern drawing"></svg>
+      <div class="stats">
+        <div class="stat"><b id="sSlots">–</b><span>Slots</span></div>
+        <div class="stat"><b id="sOpen">–</b><span>Open area</span></div>
+        <div class="stat"><b id="sMm2">–</b><span>Open mm²</span></div>
+        <div class="stat"><b id="sRows">–</b><span id="sRowsLbl">Rings</span></div>
+      </div>
+      <div class="checks" id="checks"></div>
+      <details>
+        <summary id="tblSummary">Ring breakdown</summary>
+        <div class="tbl-wrap"><table id="tbl"></table></div>
+      </details>
+    </section>
+
+    <section class="panel" aria-label="Parameters">
+      <div class="shape-switch" role="group" aria-label="Vent shape">
+        <button type="button" id="btnCircle" aria-pressed="true"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="8"/><path d="M5.5 10a4.5 4.5 0 0 1 9 0"/></svg>Circle</button>
+        <button type="button" id="btnSquare" aria-pressed="false"><svg viewBox="0 0 20 20"><rect x="2" y="2" width="16" height="16" rx="2"/><path d="M5 11l6-6M9 15l6-6"/></svg>Square / rectangle</button>
+      </div>
+
+      <div id="circleFields" class="panel">
+        <fieldset>
+          <legend>Outline</legend>
+          <div class="grid">
+            <div class="f"><label for="c_D">Diameter</label><div class="inp"><input id="c_D" type="number" step="0.5" min="5"><span class="u">mm</span></div></div>
+            <div class="f"><label for="c_margin">Solid border</label><div class="inp"><input id="c_margin" type="number" step="0.1" min="0"><span class="u">mm</span></div></div>
+            <div class="f"><label for="c_hub">Min. centre hub Ø</label><div class="inp"><input id="c_hub" type="number" step="0.5" min="0"><span class="u">mm</span></div><small>Solid area in front of the fan motor</small></div>
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>Slots &amp; spacing</legend>
+          <div class="grid">
+            <div class="f"><label for="c_w">Slot width</label><div class="inp"><input id="c_w" type="number" step="0.1" min="0.2"><span class="u">mm</span></div></div>
+            <div class="f"><label for="c_ringGap">Gap between rings</label><div class="inp"><input id="c_ringGap" type="number" step="0.1" min="0.2"><span class="u">mm</span></div></div>
+            <div class="f"><label for="c_spokeMin">Min. spoke width</label><div class="inp"><input id="c_spokeMin" type="number" step="0.1" min="0.2"><span class="u">mm</span></div><small>Material between slots in a ring</small></div>
+            <div class="f"><label for="c_twist">Ring rotation</label><div class="inp"><input id="c_twist" type="number" step="1"><span class="u">°</span></div><small>Extra turn per ring, staggers spokes</small></div>
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>Slot lengths per ring</legend>
+          <div class="f">
+            <label for="c_lengths">Target lengths, outer ring first</label>
+            <div class="row"><div class="inp"><input id="c_lengths" type="text" inputmode="decimal"><span class="u">mm</span></div><button class="btn" type="button" id="c_rand">Shuffle</button></div>
+            <small>Comma-separated. The list repeats if there are more rings than values.</small>
+          </div>
+        </fieldset>
+      </div>
+
+      <div id="squareFields" class="panel" hidden>
+        <fieldset>
+          <legend>Outline</legend>
+          <div class="grid">
+            <div class="f"><label for="s_W">Width</label><div class="inp"><input id="s_W" type="number" step="0.5" min="5"><span class="u">mm</span></div></div>
+            <div class="f"><label for="s_H">Height</label><div class="inp"><input id="s_H" type="number" step="0.5" min="5"><span class="u">mm</span></div><small>Same as width for a square</small></div>
+            <div class="f"><label for="s_cornerR">Corner radius</label><div class="inp"><input id="s_cornerR" type="number" step="0.5" min="0"><span class="u">mm</span></div></div>
+            <div class="f"><label for="s_margin">Solid border</label><div class="inp"><input id="s_margin" type="number" step="0.1" min="0"><span class="u">mm</span></div></div>
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>Slot angle</legend>
+          <div class="angle-row">
+            <div class="inp angle-num"><input id="s_angle" type="number" step="1" aria-label="Slot angle in degrees"><span class="u">°</span></div>
+            <input id="s_angleRange" type="range" min="0" max="180" step="1" aria-label="Slot angle slider">
+            <svg class="angle-dial" viewBox="-12 -12 24 24" aria-hidden="true"><circle r="10"/><line id="angleNeedle" x1="-9" y1="0" x2="9" y2="0"/></svg>
+          </div>
+          <div class="presets" role="group" aria-label="Angle presets">
+            <button type="button" class="btn sm" data-angle="0">0° horizontal</button>
+            <button type="button" class="btn sm" data-angle="30">30°</button>
+            <button type="button" class="btn sm" data-angle="45">45° diagonal</button>
+            <button type="button" class="btn sm" data-angle="60">60°</button>
+            <button type="button" class="btn sm" data-angle="90">90° vertical</button>
+            <button type="button" class="btn sm" data-angle="135">135° mirrored</button>
+          </div>
+          <small class="note">Measured counter-clockwise from horizontal. Any value works, including decimals.</small>
+        </fieldset>
+        <fieldset>
+          <legend>Slots &amp; spacing</legend>
+          <div class="grid">
+            <div class="f"><label for="s_w">Slot width</label><div class="inp"><input id="s_w" type="number" step="0.1" min="0.2"><span class="u">mm</span></div></div>
+            <div class="f"><label for="s_rowGap">Gap between rows</label><div class="inp"><input id="s_rowGap" type="number" step="0.1" min="0.2"><span class="u">mm</span></div></div>
+            <div class="f"><label for="s_web">Gap between slot ends</label><div class="inp"><input id="s_web" type="number" step="0.1" min="0.2"><span class="u">mm</span></div></div>
+            <div class="f"><label for="s_minLen">Shortest edge slot</label><div class="inp"><input id="s_minLen" type="number" step="0.1" min="0.2"><span class="u">mm</span></div></div>
+            <div class="f"><label for="s_ends">Slot ends</label><div class="inp"><select id="s_ends"><option value="round">Round (obround slots)</option><option value="square">Square (rectangular slots)</option></select></div></div>
+          </div>
+          <label class="toggle"><input id="s_stretch" type="checkbox">Stretch edge slots instead of leaving short gaps</label>
+        </fieldset>
+        <fieldset>
+          <legend>Slot lengths per row</legend>
+          <div class="f">
+            <label for="s_lengths">Target lengths, centre row outward</label>
+            <div class="row"><div class="inp"><input id="s_lengths" type="text" inputmode="decimal"><span class="u">mm</span></div><button class="btn" type="button" id="s_rand">Shuffle</button></div>
+            <small>Comma-separated. Rows mirror around the centre row.</small>
+          </div>
+        </fieldset>
+      </div>
+
+      <fieldset class="export">
+        <legend>Export</legend>
+        <div class="row">
+          <button class="btn primary" type="button" id="saveDxf">Save DXF</button>
+          <button class="btn" type="button" id="copyDxf">Copy DXF text</button>
+          <button class="btn" type="button" id="saveSvg">Save SVG</button>
+          <button class="btn" type="button" id="reset">Reset shape</button>
+        </div>
+        <p class="note" id="dxfNote">The DXF downloads as <code>.dxf.txt</code>, because this page can only save a fixed set of file types. Delete the <code>.txt</code> ending and it opens in Fusion 360, FreeCAD, Onshape, SolidWorks or LibreCAD. Layers: OUTLINE and SLOTS, units mm.</p>
+        <p class="status" id="status" role="status"></p>
+      </fieldset>
+    </section>
+  </div>
+</div>
+
+<script src="src/gen.js"></script>
+<script>
+(function () {
+  const G = window.VentGen;
+  const DEFAULTS = {
+    circle: { D: 38, margin: 1.5, hub: 2, w: 1, ringGap: 1, spokeMin: 1, twist: 21, lengths: "11, 7, 9.5, 5.5, 8, 6.5, 4.5, 3.5" },
+    square: { W: 38, H: 38, cornerR: 3, ends: "round", margin: 1.5, angle: 45, w: 1, rowGap: 1, web: 1, minLen: 2.5, stretch: true, lengths: "8, 4, 6, 10, 5" },
+  };
+  const KEYS = {
+    circle: ["D", "margin", "hub", "w", "ringGap", "spokeMin", "twist", "lengths"],
+    square: ["W", "H", "ends", "cornerR", "margin", "angle", "w", "rowGap", "web", "minLen", "stretch", "lengths"],
+  };
+  const clone = (o) => JSON.parse(JSON.stringify(o));
+  let state = { shape: "circle", circle: clone(DEFAULTS.circle), square: clone(DEFAULTS.square) };
+  try {
+    const saved = JSON.parse(localStorage.getItem("ventgen.v1") || "null");
+    if (saved && saved.circle && saved.square) state = { shape: saved.shape === "square" ? "square" : "circle", circle: { ...DEFAULTS.circle, ...saved.circle }, square: { ...DEFAULTS.square, ...saved.square } };
+    if (saved && saved.square && saved.square.S && !saved.square.W) { state.square.W = state.square.H = saved.square.S; }
+    delete state.square.S;
+  } catch (e) {}
+  const persist = () => { try { localStorage.setItem("ventgen.v1", JSON.stringify(state)); } catch (e) {} };
+
+  const $ = (id) => document.getElementById(id);
+  const pre = { circle: "c_", square: "s_" };
+  let geom = null;
+
+  function fillInputs(shape) {
+    for (const k of KEYS[shape]) {
+      const el = $(pre[shape] + k);
+      if (el.type === "checkbox") el.checked = !!state[shape][k]; else el.value = state[shape][k];
+    }
+  }
+  function readInputs(shape) {
+    for (const k of KEYS[shape]) {
+      const el = $(pre[shape] + k);
+      if (el.type === "checkbox") state[shape][k] = el.checked;
+      else if (k === "lengths" || k === "ends") state[shape][k] = el.value;
+      else { const v = parseFloat(el.value); if (isFinite(v)) state[shape][k] = v; }
+    }
+  }
+
+  function fileBase() {
+    if (state.shape === "circle") return `fan_vent_circle_${fmt(state.circle.D)}mm`;
+    const q = state.square, kind = +q.W === +q.H ? "square" : "rect";
+    return `fan_vent_${kind}_${fmt(q.W)}x${fmt(q.H)}mm_${fmt(q.angle)}deg${q.ends === "square" ? "_rectslots" : ""}`;
+  }
+  const fmt = (x) => String(+(+x).toFixed(2)).replace(".", "p");
+  const n1 = (x) => (+x).toFixed(1);
+
+  function compute() {
+    const p = state[state.shape];
+    const safe = { ...p };
+    for (const k of ["w", "ringGap", "spokeMin", "rowGap", "web", "minLen"]) if (k in safe) safe[k] = Math.max(0.05, +safe[k]);
+    if ("D" in safe) safe.D = Math.max(1, safe.D);
+    if ("W" in safe) { safe.W = Math.max(1, safe.W); safe.H = Math.max(1, safe.H); }
+    geom = state.shape === "circle" ? G.circlePattern(safe) : G.squarePattern(safe);
+  }
+
+  function render() {
+    compute();
+    const g = geom, E = g.extent, pad = Math.max(3, E * 0.2);
+    const svg = $("drawing");
+    svg.setAttribute("viewBox", `${-E - pad} ${-E - pad} ${2 * (E + pad)} ${2 * (E + pad)}`);
+    const fs = Math.max(0.9, E * 0.065);
+    let outline, dim;
+    if (g.outline.type === "circle") {
+      outline = `<circle class="ol" cx="0" cy="0" r="${E}"/>`;
+      dim = `<path class="dim" d="M${-E} ${E + pad * 0.7}H${E}M${-E} ${E + pad * 0.55}V${E + pad * 0.85}M${E} ${E + pad * 0.55}V${E + pad * 0.85}"/>` +
+        `<text x="0" y="${E + pad * 0.7 - fs * 0.3}" font-size="${fs}" text-anchor="middle">Ø${+(+state.circle.D).toFixed(2)}</text>`;
+    } else {
+      const hx = g.outline.hx, hy = g.outline.hy, yb = hy + pad * 0.7, xr = hx + pad * 0.7;
+      outline = `<path class="ol" d="${G.polyToPath(G.outlinePoly(g.outline))}" transform="scale(1,-1)"/>`;
+      dim = `<path class="dim" d="M${-hx} ${yb}H${hx}M${-hx} ${yb - pad * 0.15}V${yb + pad * 0.15}M${hx} ${yb - pad * 0.15}V${yb + pad * 0.15}` +
+        `M${xr} ${-hy}V${hy}M${xr - pad * 0.15} ${-hy}H${xr + pad * 0.15}M${xr - pad * 0.15} ${hy}H${xr + pad * 0.15}"/>` +
+        `<text x="0" y="${yb - fs * 0.3}" font-size="${fs}" text-anchor="middle">${+(+state.square.W).toFixed(2)}</text>` +
+        `<text x="${xr - fs * 0.3}" y="0" font-size="${fs}" text-anchor="middle" transform="rotate(-90 ${xr - fs * 0.3} 0)">${+(+state.square.H).toFixed(2)}</text>`;
+    }
+    const cm = `<path class="cm" d="M${-E - pad * 0.3} 0H${E + pad * 0.3}M0 ${-E - pad * 0.3}V${E + pad * 0.3}"/>`;
+    const slots = g.slots.map((s) => `<path class="sl" d="${G.polyToPath(s)}"/>`).join("");
+    svg.innerHTML = cm + outline + `<g transform="scale(1,-1)">${slots}</g>` + dim;
+
+    // stats
+    $("sSlots").textContent = g.slots.length;
+    $("sOpen").textContent = g.outlineArea > 0 ? (100 * g.area / g.outlineArea).toFixed(1) + "%" : "–";
+    $("sMm2").textContent = Math.round(g.area);
+    $("sRows").textContent = g.rows.length;
+    $("sRowsLbl").textContent = state.shape === "circle" ? "Rings" : "Rows";
+
+    const isC = state.shape === "circle";
+    $("sheetTitle").textContent = isC
+      ? `Ø${+(+state.circle.D).toFixed(2)} circle · concentric arcs`
+      : `${+(+state.square.W).toFixed(2)} × ${+(+state.square.H).toFixed(2)} ${+state.square.W === +state.square.H ? "square" : "rectangle"} · ${+(+state.square.angle).toFixed(1)}° ${state.square.ends === "square" ? "rectangular" : "round-end"} slots`;
+    $("fileName").textContent = fileBase();
+
+    // checks
+    const p = state[state.shape];
+    const rib = isC ? p.ringGap : p.rowGap, spoke = isC ? p.spokeMin : p.web;
+    const minRib = Math.min(rib, spoke);
+    const chips = [];
+    chips.push(minRib >= 0.8 ? [`Thinnest rib ${n1(minRib)} mm`, false] : [`Rib ${n1(minRib)} mm is thin for a 0.4 mm nozzle`, true]);
+    chips.push(p.w >= 0.6 ? [`Slot width ${n1(p.w)} mm`, false] : [`Slots under 0.6 mm tend to close up when printed`, true]);
+    if (p.margin < 0.8) chips.push([`Border ${n1(p.margin)} mm is fragile`, true]);
+    if (!g.slots.length) chips.push(["No slots fit with these settings", true]);
+    if (isC && g.hubD) chips.push([`Centre hub Ø${n1(g.hubD)} mm`, false]);
+    $("checks").innerHTML = chips.map(([t, w]) => `<span class="chip${w ? " warn" : ""}">${t}</span>`).join("");
+
+    // table
+    $("tblSummary").textContent = isC ? "Ring breakdown" : "Row breakdown";
+    const head = isC ? "<tr><th>Ring radius</th><th>Slots</th><th>Slot length</th></tr>" : "<tr><th>Row offset</th><th>Slots</th><th>Target length</th></tr>";
+    const rows = g.rows.map((r) => isC
+      ? `<tr><td>${r.r.toFixed(2)}</td><td>${r.n}</td><td>${r.len.toFixed(2)}</td></tr>`
+      : `<tr><td>${r.v.toFixed(2)}</td><td>${r.n}</td><td>${r.len.toFixed(2)}</td></tr>`).join("");
+    $("tbl").innerHTML = head + rows;
+    const ang = +state.square.angle || 0;
+    const rng = $("s_angleRange");
+    if (document.activeElement !== rng) rng.value = ((ang % 180) + 180) % 180;
+    $("angleNeedle").setAttribute("transform", `rotate(${-ang})`);
+    document.querySelectorAll(".presets [data-angle]").forEach((b) => b.setAttribute("aria-pressed", +b.dataset.angle === ang));
+    persist();
+  }
+
+  function setShape(shape) {
+    state.shape = shape;
+    $("btnCircle").setAttribute("aria-pressed", shape === "circle");
+    $("btnSquare").setAttribute("aria-pressed", shape === "square");
+    $("circleFields").hidden = shape !== "circle";
+    $("squareFields").hidden = shape !== "square";
+    setStatus("");
+    render();
+  }
+
+  function shuffle(shape) {
+    const w = state[shape].w || 1;
+    const n = shape === "circle" ? 8 : 5;
+    const lo = Math.max(w * 2.5, 3), hi = shape === "circle" ? 12 : 11;
+    const vals = Array.from({ length: n }, () => +(lo + Math.random() * (hi - lo)).toFixed(1));
+    state[shape].lengths = vals.join(", ");
+    $(pre[shape] + "lengths").value = state[shape].lengths;
+    render();
+  }
+
+  function setStatus(t) { $("status").textContent = t; }
+
+  // Inside Claude the page saves through the viewer's download prompt (fixed file types, so DXF goes out as .dxf.txt).
+  // Anywhere else (GitHub Pages, a local file) it uses an ordinary browser download with the real .dxf extension.
+  const inClaude = !!(window.claude && window.claude.use);
+  let downloads = null;
+  if (inClaude) window.claude.use("downloads").then((d) => { downloads = d; }).catch(() => {});
+  else {
+    const note = document.getElementById("dxfNote");
+    if (note) note.innerHTML = "Opens in Fusion 360, FreeCAD, Onshape, SolidWorks or LibreCAD. Layers: OUTLINE and SLOTS, units mm.";
+  }
+  function browserSave(filename, data) {
+    const mime = filename.endsWith(".svg") ? "image/svg+xml" : "application/dxf";
+    const url = URL.createObjectURL(new Blob([data], { type: mime }));
+    const a = document.createElement("a");
+    a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setStatus(`Downloaded ${filename}`);
+  }
+  async function save(filename, data) {
+    if (!inClaude) { browserSave(filename.replace(/\.dxf\.txt$/, ".dxf"), data); return; }
+    if (!downloads) { setStatus("Saving files isn't available in this view. Use Copy DXF text and paste it into a file named .dxf."); return; }
+    try {
+      await downloads.save({ filename, data });
+      setStatus(`Saved ${filename}`);
+    } catch (e) {
+      const code = e && e.code;
+      if (code === "declined") setStatus("Save cancelled.");
+      else if (code === "rate_limited") setStatus("A save prompt is already open. Finish that one first.");
+      else setStatus("Saving files isn't available in this view. Use Copy DXF text instead.");
+    }
+  }
+
+  $("saveDxf").addEventListener("click", () => save(fileBase() + ".dxf.txt", G.toDXF(geom)));
+  $("saveSvg").addEventListener("click", () => save(fileBase() + ".svg", G.toSVG(geom)));
+  $("copyDxf").addEventListener("click", () => {
+    const text = G.toDXF(geom);
+    const fallback = () => {
+      const ta = document.createElement("textarea");
+      ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select();
+      let ok = false; try { ok = document.execCommand("copy"); } catch (e) {}
+      ta.remove();
+      setStatus(ok ? "DXF copied. Paste it into a text file and save it as .dxf." : "Copy isn't allowed here. Use Save DXF instead.");
+    };
+    try {
+      navigator.clipboard.writeText(text).then(() => setStatus("DXF copied. Paste it into a text file and save it as .dxf."), fallback);
+    } catch (e) { fallback(); }
+  });
+  $("reset").addEventListener("click", () => {
+    state[state.shape] = clone(DEFAULTS[state.shape]);
+    fillInputs(state.shape); setStatus("Reset to defaults."); render();
+  });
+  $("btnCircle").addEventListener("click", () => setShape("circle"));
+  $("btnSquare").addEventListener("click", () => setShape("square"));
+  const setAngle = (a) => { state.square.angle = a; $("s_angle").value = a; render(); };
+  $("s_angleRange").addEventListener("input", (e) => setAngle(+e.target.value));
+  document.querySelectorAll(".presets [data-angle]").forEach((b) => b.addEventListener("click", () => setAngle(+b.dataset.angle)));
+  $("c_rand").addEventListener("click", () => shuffle("circle"));
+  $("s_rand").addEventListener("click", () => shuffle("square"));
+
+  let raf = 0;
+  for (const shape of ["circle", "square"]) {
+    for (const k of KEYS[shape]) {
+      const el = $(pre[shape] + k);
+      el.addEventListener(el.type === "checkbox" || el.tagName === "SELECT" ? "change" : "input", () => {
+        readInputs(shape);
+        cancelAnimationFrame(raf); raf = requestAnimationFrame(render);
+      });
+    }
+    fillInputs(shape);
+  }
+  setShape(state.shape);
+})();
+</script>
+</body>
+</html>
